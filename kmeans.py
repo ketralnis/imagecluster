@@ -1,5 +1,7 @@
 import numpy as np
 import random
+
+# https://datasciencelab.wordpress.com/2013/12/12/clustering-with-k-means-in-python/
  
 def cluster_points(X, mu):
     clusters  = {}

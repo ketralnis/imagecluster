@@ -4,14 +4,17 @@ import math
 import random
 import sys
 from functools import partial
+import colorsys
+import logging
 
 from PIL import Image
 import numpy as np
+import pipeline
 
 import kmeans
 from progress import progress
 
-exts = ('jpg', 'png')
+exts = ('jpg', 'png', 'pef')
 #colors = {
 #    'black': (0, 0, 0),
 #    'red': (255, 0, 0),
@@ -34,22 +37,31 @@ def distance(v1, v2):
     diffs = [(p2-p1)**2 for (p1, p2) in zip(v1, v2)]
     return math.sqrt(sum(diffs))
 
-def closest(pix, coords):
-    dists = [(distance(pix, coord), coord) for coord in coords]
-    closest = min(dists)
-    return closest[1]
 
-def makehist(fname):
+def closest(pix, coords):
+    dists = [(distance(pix, coord), i) for i, coord in enumerate(coords)]
+    dist, which = min(dists)
+    return which
+
+
+def getimage(fname):
     maxsize = (128, 128)
 
     im = Image.open(fname, 'r')
     im.thumbnail(maxsize) # modifies in place
+    im = im.convert('RGB')
+    return im
 
+
+def makehist(im):
     hist = np.array([0] * len(colors_p))
 
     for pix in im.getdata():
-        color = closest(pix, colors_p)
-        idx = colors_p.index(color)
+        try:
+            pix = colorsys.rgb_to_hsv(*pix)
+        except Exception:
+            logging.exception("wtf? %r", pix)
+        idx = closest(pix, colors_p)
         hist[idx] += 1
 
     npixels = im.size[0] * im.size[1]
@@ -61,24 +73,28 @@ def makehist(fname):
 
     return hist
 
-def main(filesdir, outdir, nclusters=10):
+
+def main(filesdir, outdir, nclusters=5):
     hists = []
 
     fnames = os.listdir(filesdir)
+    fnames = [os.path.join(filesdir, fn)
+              for fn in fnames
+              if not fn.startswith('.')
+              and any(fn.lower().endswith(x) for x in exts)]
     random.shuffle(fnames)
     #fnames = random.sample(fnames, 10)
 
+    pl = pipeline.Pipeline([
+        pipeline.Generator(fnames),
+        pipeline.MultiMapper(lambda fname: (fname, getimage(fname)), 2),
+        pipeline.Mapper(lambda tup: (tup[0], makehist(tup[1]))),
+    ], bufsize=5)
+
     maps = {}
 
-    for fname in progress(fnames, verbosity=1):
-        if fname.startswith('.'):
-            continue
-
-        if not any(fname.lower().endswith(x) for x in exts):
-            continue
-
-        fname = os.path.join(filesdir, fname)
-        hist = makehist(fname)
+    for fname, hist in progress(pl, verbosity=1, estimate=len(fnames),
+                                key=lambda x: x[0]):
         maps[id(hist)] = fname
         hists.append(hist)
 
@@ -86,11 +102,12 @@ def main(filesdir, outdir, nclusters=10):
 
     for num, cluster in clusters.iteritems():
         mymu = mu[num]
-        os.makedirs(os.path.join(outdir, str(num)))
+        bdir = os.path.join(outdir, '%02d' % (num,))
+        os.makedirs(bdir)
         cluster.sort(key=partial(distance, mymu))
         for i, item in enumerate(cluster):
             fname = maps[id(item)]
-            toname = os.path.join(outdir, str(num), '%03d.jpg' % (i,))
+            toname = os.path.join(bdir, '%03d.jpg' % (i,))
             print 'link', fname, toname
             os.link(fname, toname)
 
