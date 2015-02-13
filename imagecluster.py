@@ -23,6 +23,8 @@ from progress import progress
 exts = ('jpg', 'png', 'pef')
 
 def make_colors():
+    # TODO these are very probably terrible initial values
+
     values = [0, 255/2, 255]
     colors = []
     for x in values:
