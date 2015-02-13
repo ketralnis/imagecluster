@@ -23,31 +23,16 @@ from progress import progress
 exts = ('jpg', 'png', 'pef')
 
 def make_colors():
-    values = [0, 0.5, 1.0]
+    values = [0, 255/2, 255]
     colors = []
     for x in values:
         for y in values:
             for z in values:
-                colors.append(np.array((x,y,z)))
+                colors.append((x,y,z))
     colors.sort(key=tuple)
     return colors
 
 colors_p = make_colors()
-
-
-def distance(v1, v2):
-    differences = (v2-v1)**2
-    summ = differences.sum()
-    dist = math.sqrt(summ)
-    return dist
-
-
-def closest(pix, coords):
-    dists = [(distance(pix, coord), i)
-             for i, coord
-             in enumerate(coords)]
-    dist, which = min(dists)
-    return which
 
 
 def makehist(fname):
@@ -61,20 +46,16 @@ def makehist(fname):
 
     # get it into RGB first if it's not (e.g. pallet-based images)
     im = im.convert('RGB')
-    npixels = float(im.size[0] * im.size[1])
+    npixels = im.size[0] * im.size[1]
 
-    hist = np.zeros(len(colors_p), dtype=float)
+    hist = [0.0]*len(colors_p)
 
-    pixs = np.empty((npixels,3))
-    pixs[:] = im.getdata()
-    pixs /= 255.0
-
-    for pix in pixs:
+    for pix in im.getdata():
         histidx = kmeans.cluster_idx(pix, colors_p)
         hist[histidx] += 1.0
 
     # divide by the size
-    hist /= npixels
+    hist = [h/float(npixels) for h in hist]
 
     return fname, hist
 
@@ -171,7 +152,7 @@ def main(argv):
         mymu = mu[num]
         bdir = os.path.join(args.outdir, '%02d' % (num,))
         os.makedirs(bdir)
-        cluster.sort(key=partial(distance, mymu))
+        cluster.sort(key=partial(kmeans.distance, mymu))
         for i, item in enumerate(cluster):
             fname = maps[id(item)]
             toname = os.path.join(bdir, '%03d.jpg' % (i,))

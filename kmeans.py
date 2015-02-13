@@ -1,5 +1,6 @@
 import numpy as np
 import random
+import math
 
 # https://datasciencelab.wordpress.com/2013/12/12/clustering-with-k-means-in-python/
  
@@ -14,9 +15,13 @@ def cluster_points(X, mu):
     return clusters
 
 def cluster_idx(x, mu):
-    bestmukey = min([(np.linalg.norm(x-mu[i[0]]), i[0])
-                     for i in enumerate(mu)])[1]
-    return bestmukey
+    bestmu, key = min([(distance(x, mu_), i)
+                      for i, mu_ in enumerate(mu)])
+    return key
+
+def distance(v1, v2):
+    differences = sum([(p2-p1)**2 for (p1, p2) in zip(v1, v2)])
+    return math.sqrt(differences)
 
 def reevaluate_centers(mu, clusters):
     newmu = []
