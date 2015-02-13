@@ -6,15 +6,18 @@ import random
 def cluster_points(X, mu):
     clusters  = {}
     for x in X:
-        bestmukey = min([(i[0], np.linalg.norm(x-mu[i[0]]))
-                         for i in enumerate(mu)],
-                        key=lambda t: t[1])[0]
+        bestmukey = cluster_idx(x, mu)
         try:
             clusters[bestmukey].append(x)
         except KeyError:
             clusters[bestmukey] = [x]
     return clusters
- 
+
+def cluster_idx(x, mu):
+    bestmukey = min([(np.linalg.norm(x-mu[i[0]]), i[0])
+                     for i in enumerate(mu)])[1]
+    return bestmukey
+
 def reevaluate_centers(mu, clusters):
     newmu = []
     keys = sorted(clusters.keys())

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import sqlite3
+import itertools
 import argparse
 import os
 import os.path
@@ -27,19 +28,18 @@ def make_colors():
     for x in values:
         for y in values:
             for z in values:
-                colors.append(colorsys.rgb_to_hsv(x,y,z))
+                colors.append(np.array((x,y,z)))
+    colors.sort(key=tuple)
     return colors
 
 colors_p = make_colors()
 
 
 def distance(v1, v2):
-    # differences = (v2-v1)**2
-    # summ = differences.sum()
-    # dist = math.sqrt(summ)
-    # return dist
-    diffs = [(p2-p1)**2 for (p1, p2) in zip(v1, v2)]
-    return math.sqrt(sum(diffs))
+    differences = (v2-v1)**2
+    summ = differences.sum()
+    dist = math.sqrt(summ)
+    return dist
 
 
 def closest(pix, coords):
@@ -61,20 +61,17 @@ def makehist(fname):
 
     # get it into RGB first if it's not (e.g. pallet-based images)
     im = im.convert('RGB')
-
-    hist = np.array([0.0] * len(colors_p))
-
-    for pix in im.getdata():
-        # map every pixel to its nearest quantised colour
-        try:
-            pix = colorsys.rgb_to_hsv(*pix)
-        except Exception:
-            logging.exception("wtf? %r", pix)
-        idx = closest(pix, colors_p)
-        # and build the histogram from the result
-        hist[idx] += 1.0
-
     npixels = float(im.size[0] * im.size[1])
+
+    hist = np.zeros(len(colors_p), dtype=float)
+
+    pixs = np.empty((npixels,3))
+    pixs[:] = im.getdata()
+    pixs /= 255.0
+
+    for pix in pixs:
+        histidx = kmeans.cluster_idx(pix, colors_p)
+        hist[histidx] += 1.0
 
     # divide by the size
     hist /= npixels
@@ -151,8 +148,13 @@ def main(argv):
 
         pool = Pool(processes=cpu_count())
 
-        for fname, hist in progress(pool.imap_unordered(makehist, searchfnames, chunksize=1),
-                                    verbosity=1, estimate=len(searchfnames), key=lambda x: x[0]):
+        #results = itertools.imap(makehist, searchfnames)
+        results = pool.imap_unordered(makehist, searchfnames, chunksize=1)
+
+        for fname, hist in progress(results,
+                                    verbosity=1,
+                                    estimate=len(searchfnames),
+                                    key=lambda x: x[0]):
             maps[id(hist)] = fname
             hists[fname] = hist
 
