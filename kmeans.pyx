@@ -3,41 +3,61 @@ import random
 import math
 import logging
 
+cdef extern from "math.h":
+    double sqrt(double x)
+
 logging.getLogger(__name__).setLevel(logging.DEBUG)
 
 # https://datasciencelab.wordpress.com/2013/12/12/clustering-with-k-means-in-python/
 
-def cluster_points(X, mu):
-    clusters  = {i:[] for i in range(len(mu))}
+cpdef dict cluster_points(list X, list mu):
+    cdef dict clusters = {i:[] for i in range(len(mu))}
+    cdef tuple x
+    cdef int bestmukey
+
     for x in X:
         bestmukey = cluster_idx(x, mu)
         clusters[bestmukey].append(x)
-        # clusters.setdefault(bestmukey, []).append(x)
     return clusters
 
-def cluster_idx(x, mu):
+cpdef int cluster_idx(tuple x, list mu):
+    cdef int i
+    cdef tuple mu_
     bestmu, key = min([(distance(x, mu_), i)
                       for i, mu_ in enumerate(mu)])
     return key
 
-def distance(v1, v2):
-    differences = sum([(p2-p1)**2 for (p1, p2) in zip(v1, v2)])
-    return math.sqrt(differences)
 
-def mean(x):
-    return sum(x)/len(x)
+cpdef float distance(tuple v1, tuple v2):
+    cdef float sumofsquares = 0.0
+    cdef float p1
+    cdef float p2
+    cdef float square
 
-def reevaluate_centers(mu, clusters):
-    newmu = []
-    keys = sorted(clusters.keys())
+    #differences = sum([(p2-p1)**2 for (p1, p2) in zip(v1, v2)])
+    #return math.sqrt(differences)
+
+    for x in range(len(v1)):
+        p1 = v1[x]
+        p2 = v2[x]
+        diff = p2-p1
+        square = diff**2
+        sumofsquares += square
+
+    return sqrt(sumofsquares)
+
+cpdef list reevaluate_centers(list mu, dict clusters):
+    cdef list newmu = []
+    cdef int keys = sorted(clusters.keys())
     for k in keys:
-        newmu.append(np.mean(clusters[k], axis = 0))
+        newmu.append(tuple(np.mean(clusters[k], axis = 0)))
     return newmu
 
-def has_converged(mu, oldmu):
+cpdef has_converged(list mu, list oldmu):
+    cdef list a
     return set([tuple(a) for a in mu]) == set([tuple(a) for a in oldmu])
 
-def find_centers(X, K, trieslimit=10):
+cpdef tuple find_centers(X, K, trieslimit=10):
     # Initialize to K random centers
     oldmu = random.sample(X, K)
     mu = random.sample(X, K)
