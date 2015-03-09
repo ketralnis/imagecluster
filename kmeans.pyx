@@ -10,7 +10,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 
 # https://datasciencelab.wordpress.com/2013/12/12/clustering-with-k-means-in-python/
 
-cpdef dict cluster_points(list X, list mu):
+cpdef dict cluster_points(X, list mu):
     cdef dict clusters = {i:[] for i in range(len(mu))}
     cdef tuple x
     cdef list inter
@@ -20,13 +20,22 @@ cpdef dict cluster_points(list X, list mu):
         bestmukey = cluster_idx(x, mu)
         inter = clusters[bestmukey]
         inter.append(x)
+
     return clusters
 
+
 cpdef int cluster_idx(tuple x, list mu):
+    # given a point x and a list of centres mu, return the
+    # index of the centre that minimises the distance to x
     cdef int i
     cdef tuple mu_
-    bestmu, key = min([(distance(x, mu_), i)
-                      for i, mu_ in enumerate(mu)])
+    cdef int key = -1
+    cdef float bestdistance = -1
+    for i, mu_ in enumerate(mu):
+        thisdistance = distance(x, mu_)
+        if bestdistance == -1 or bestdistance > thisdistance:
+            bestdistance = thisdistance
+            key = i
     return key
 
 
@@ -35,9 +44,6 @@ cpdef float distance(tuple v1, tuple v2):
     cdef float p1
     cdef float p2
     cdef float square
-
-    #differences = sum([(p2-p1)**2 for (p1, p2) in zip(v1, v2)])
-    #return math.sqrt(differences)
 
     for x in range(len(v1)):
         p1 = v1[x]
@@ -48,32 +54,38 @@ cpdef float distance(tuple v1, tuple v2):
 
     return sqrt(sumofsquares)
 
-cpdef list reevaluate_centers(list mu, dict clusters):
+
+cpdef list reevaluate_centers(dict clusters):
     cdef list newmu = []
-    cdef int keys = sorted(clusters.keys())
+    cdef list keys = sorted(clusters.keys())
+    cdef int k
     for k in keys:
         newmu.append(tuple(np.mean(clusters[k], axis = 0)))
     return newmu
+
 
 cpdef has_converged(list mu, list oldmu):
     cdef list a
     return set([tuple(a) for a in mu]) == set([tuple(a) for a in oldmu])
 
-cpdef tuple find_centers(X, K, trieslimit=10):
+
+cpdef tuple find_centers(list X, int K, int trieslimit=10):
     # Initialize to K random centers
-    oldmu = random.sample(X, K)
-    mu = random.sample(X, K)
-    tries = 0
+    cdef list oldmu = random.sample(X, K)
+    cdef list mu = random.sample(X, K)
+
+    cdef int tries = 0
     while not has_converged(mu, oldmu):
         tries += 1
         if trieslimit and tries >= trieslimit:
+            logging.debug("Quitting after %d tries", tries)
             break
         oldmu = mu
         # Assign all points in X to clusters
         clusters = cluster_points(X, mu)
         logging.info("Clustering Attempt #%d: %r", tries, map(len, clusters.itervalues()))
         # Reevaluate centers
-        mu = reevaluate_centers(oldmu, clusters)
+        mu = reevaluate_centers(clusters)
 
     return mu, clusters
 

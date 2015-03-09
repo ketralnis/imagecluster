@@ -52,14 +52,10 @@ def makehist(fname):
     im = im.convert('RGB')
     npixels = im.size[0] * im.size[1]
 
-    hist = [0.0]*len(colors_p)
-
-    for pix in im.getdata():
-        histidx = kmeans.cluster_idx(pix, colors_p)
-        hist[histidx] += 1.0
-
-    # divide by the size
-    hist = [h/float(npixels) for h in hist]
+    # this turns out to be similar to the gathering phase of a
+    # kmeans operation so just reuse that
+    pixxs = kmeans.cluster_points(im.getdata(), colors_p)
+    hist = [len(y)/float(npixels) for (x,y) in sorted(pixxs.items())]
 
     return fname, hist
 
