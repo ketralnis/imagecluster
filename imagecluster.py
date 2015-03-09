@@ -15,23 +15,25 @@ from multiprocessing import Pool, cpu_count
 import pickle
 
 from PIL import Image
-import numpy as np
+#import numpy as np
 
 import kmeans
 from progress import progress
 
 exts = ('jpg', 'png', 'pef')
 
+logging.getLogger(__name__).setLevel(logging.DEBUG)
+
 def make_colors():
     # TODO these are very probably terrible initial values
 
-    values = [0, 255/2, 255]
+    values = [0, 255/4*1, 255/4*2, 255/4*3, 255]
     colors = []
     for x in values:
         for y in values:
             for z in values:
                 colors.append((x,y,z))
-    colors.sort(key=tuple)
+    colors.sort()
     return colors
 
 colors_p = make_colors()
@@ -61,12 +63,13 @@ def makehist(fname):
 
     return fname, hist
 
-
 def main(argv):
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--cache', dest='cache', default=None)
     parser.add_argument('-n', dest='num_clusters', type=int, default=10)
+    parser.add_argument('-j', dest='concurrency', type=int,
+                        default=cpu_count())
 
     parser.add_argument('indir')
     parser.add_argument('outdir')
@@ -129,7 +132,7 @@ def main(argv):
         # this just makes the progress bar more accurate
         random.shuffle(searchfnames)
 
-        pool = Pool(processes=cpu_count())
+        pool = Pool(processes=args.concurrency)
 
         #results = itertools.imap(makehist, searchfnames)
         results = pool.imap_unordered(makehist, searchfnames, chunksize=1)
@@ -147,17 +150,18 @@ def main(argv):
                              (fname, aspickle))
                 conn.commit()
 
-
     mu, clusters = kmeans.find_centers(hists.values(), args.num_clusters)
 
     for num, cluster in clusters.iteritems():
         mymu = mu[num]
         bdir = os.path.join(args.outdir, '%02d' % (num,))
         os.makedirs(bdir)
-        cluster.sort(key=partial(kmeans.distance, mymu))
-        for i, item in enumerate(cluster):
+        cluster = [ (kmeans.distance(mymu, x), x)
+                    for x in cluster ]
+        cluster.sort()
+        for i, (distance, item) in enumerate(cluster):
             fname = maps[id(item)]
-            toname = os.path.join(bdir, '%03d.jpg' % (i,))
+            toname = os.path.join(bdir, '%03d_%.8f.jpg' % (i, distance))
             os.link(fname, toname)
 
 main(sys.argv)
