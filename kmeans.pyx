@@ -13,11 +13,13 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 cpdef dict cluster_points(list X, list mu):
     cdef dict clusters = {i:[] for i in range(len(mu))}
     cdef tuple x
+    cdef list inter
     cdef int bestmukey
 
     for x in X:
         bestmukey = cluster_idx(x, mu)
-        clusters[bestmukey].append(x)
+        inter = clusters[bestmukey]
+        inter.append(x)
     return clusters
 
 cpdef int cluster_idx(tuple x, list mu):

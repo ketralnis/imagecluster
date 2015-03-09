@@ -27,7 +27,7 @@ logging.getLogger(__name__).setLevel(logging.DEBUG)
 def make_colors():
     # TODO these are very probably terrible initial values
 
-    values = [0, 255/4*1, 255/4*2, 255/4*3, 255]
+    values = map(float, [0, 255/4*1, 255/4*2, 255/4*3, 255])
     colors = []
     for x in values:
         for y in values:
@@ -62,6 +62,12 @@ def makehist(fname):
     hist = [h/float(npixels) for h in hist]
 
     return fname, hist
+
+def printer(x):
+    try:
+        return x[:50].encode('utf8')
+    except UnicodeDecodeError:
+        return 'unprintable'
 
 def main(argv):
     parser = argparse.ArgumentParser()
@@ -140,7 +146,7 @@ def main(argv):
         for fname, hist in progress(results,
                                     verbosity=1,
                                     estimate=len(searchfnames),
-                                    key=lambda x: x[0]):
+                                    key=lambda x: printer(x[0])):
             maps[id(hist)] = fname
             hists[fname] = hist
 
