@@ -49,13 +49,15 @@ def makehist(fname):
     im.thumbnail(maxsize) # modifies in place
 
     # get it into RGB first if it's not (e.g. pallet-based images)
-    im = im.convert('RGB')
+    if im.mode != 'RGB':
+        im = im.convert('RGB')
     npixels = im.size[0] * im.size[1]
 
     # this turns out to be similar to the gathering phase of a
     # kmeans operation so just reuse that
     pixxs = kmeans.cluster_points(im.getdata(), colors_p)
     hist = [len(y)/float(npixels) for (x,y) in sorted(pixxs.items())]
+    hist = tuple(hist)
 
     return fname, hist
 
@@ -65,7 +67,7 @@ def printer(x):
     except UnicodeDecodeError:
         return 'unprintable'
 
-def main(argv):
+def main():
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--cache', dest='cache', default=None)
@@ -128,6 +130,8 @@ def main(argv):
             hists[fname] = hist
             maps[id(hist)] = fname
 
+        conn.execute('DROP TABLE wantfiles')
+
     searchfnames = [ fname for fname in fnames if fname not in hists ]
 
     if searchfnames:
@@ -166,5 +170,5 @@ def main(argv):
             toname = os.path.join(bdir, '%03d_%.8f.jpg' % (i, distance))
             os.link(fname, toname)
 
-main(sys.argv)
+main()
 

@@ -65,7 +65,6 @@ cpdef list reevaluate_centers(dict clusters):
 
 
 cpdef has_converged(list mu, list oldmu):
-    cdef list a
     return set([tuple(a) for a in mu]) == set([tuple(a) for a in oldmu])
 
 
@@ -75,6 +74,7 @@ cpdef tuple find_centers(list X, int K, int trieslimit=10):
     cdef list mu = random.sample(X, K)
 
     cdef int tries = 0
+
     while not has_converged(mu, oldmu):
         tries += 1
         if trieslimit and tries >= trieslimit:
